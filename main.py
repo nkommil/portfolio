@@ -1,50 +1,88 @@
-class Archive:
-    def __init__(self,path,description):
-        self.path = path
-        self.description = description
-        self.password = None
+from bs4 import BeautifulSoup
+import requests
+import pandas
+import glob
+from collections import OrderedDict
 
-    def getinfo(self):
-        print("Path: " + self:path +  "\nDesc: " + self:description + "\nPassword: "  + str(self:password))
+pages_csv = 'characters_pages.csv'
+characters_csv = 'characters_dataset.csv'
 
-class Bruteforce:
-    def __init__(self, dictionary):
-        self.dictionary = dictionary
+def get_all_links():
+    page = requests.get('https://www.marvel.com/characters')
+    soup = BeautifulSoup(page.content, 'html.parser')
 
-    def hack(self, archive):
+    pages = []
+    mvl_cards = soup.find('div', {'class':'full-content'}).find_all('div', {'class':'mvl-card mvl-card--explore'})
 
-        zip_file = zipfile.Zipfile(archive)
-        password = None
-        f = open(self, dictionary, 'r')
-        for line in f.readlines():
-            password = line.strip('\n')
+    for i in range(len(mvl_cards)-1):
+        link = mvl_cards[i]
+        page = link.find('a')
+        print(i, page['href'], page.txt)
+        pages.append(page['href'])
+
+    df = pandas.DataFrame({'Link': pages})
+    write_csv_file(df, pages_csv)
+
+def write_csv_file(df, name):
+    df.to_csv(name, index=False)
+    print('Success \n')
+
+def read_csv_file(name):
+    df = pandas.read_csv(name)
+    return df
+
+def create_characters_df():
+    base_url = 'https://www.marvel.com'
+    pages = pandas.read_csv(pages_csv)
+    links = pages['Link']
+    marvel_list = []
+    columns = []
+
+    for link in links:
+        marvel_characters = OrderedDict()
+        request = requests.get(base_url + str(link))
+
+        content = request.content
+        soup = BeautifulSoup(content, 'html.parser')
+
+        marvel_characters['Name'] = soup.find("h1").text.replace("\n", "").strip()
+        marvel_characters["Link"] = link
+        print(soup.find("h1").text.replace("\n", "").strip(), base_url + str(link))
+
+        label = soup.findAll('p', {'class':'bioheader__label'})
+
+        stat = soup.findAll('p', {'class':'bioheader__stat'})
+
+        for i in range(len(label)):
+            column = label[i].text.title()
+            if column not in columns:
+                columns.append(column)
             try:
-                zip_file,extractall(pwd=password.encode())
-                print('-----------------------------')
-                print('RESULLT: ' + password)
-                f.close()
-                return (True, password)
+                marvel_characters[columns] = stat[i].text.replace("\n","").strip()
             except:
-                print(password)
-        f.close()
-        return(False, None)
+                marvel_characters[columns] = ''
 
-class Library:
-    def __init__(self, bruteforce):
-        self.bruteforce = bruteforce
-        self.archive = []
+        marvel_list.append(marvel_characters)
 
-    def showarchives(self):
-        for archives in self.archives:
-            archives.getinfo()
-            print("")
+    df = pandas.DataFrame(marvel_list)
+    write_csv_file(df, characters_csv)
 
-    def hackall(self):
-        for archives in self.archives:
-            if archives.password == None:
-                res = self.bruteforce.huck(archive.path)
-                if res[0] == True:
-                    archives.password = res[1]
+def main():
+    files = glob.glob('*.csv')
 
+    if characters_csv not in files:
+        if pages_csv not in files:
+            print('Create characters_pages.csv')
+            get_all_links()
 
-                
+        print('Create characters_dataset.csv')
+        create_characters_df()
+
+    df = read_csv_file(characters_csv)
+    df = df.fillina('')
+
+    print('Columns: ', df.columns.values)
+    print(df[['Link', 'Eyes']])
+
+if __name__ == '__main__':
+    main()
